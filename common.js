@@ -4,3 +4,9 @@ const editable=e=>!!e.target.closest?.('input,textarea,select,[contenteditable=t
 
 // Safari does not reliably allow orientation lock in a normal browser tab.
 const rotateNotice=document.createElement('div');rotateNotice.className='rotateNotice';rotateNotice.setAttribute('role','status');rotateNotice.innerHTML='<span class="rotateGlyph">↻</span><strong>请横屏使用</strong><span>旋转手机，获得完整的游戏与制谱工作区。</span>';document.body.append(rotateNotice);
+
+// Local preview transfer: structured clone preserves the original audio Blob.
+function previewDB(){return new Promise((resolve,reject)=>{const r=indexedDB.open('pulse-preview',1);r.onupgradeneeded=()=>r.result.createObjectStore('payload');r.onsuccess=()=>resolve(r.result);r.onerror=()=>reject(r.error);r.onblocked=()=>reject(Error('本地数据库被阻塞'))})}
+async function previewStore(mode,key,value){const db=await previewDB();try{return await new Promise((resolve,reject)=>{const tx=db.transaction('payload',mode),s=tx.objectStore('payload');const r=mode==='readwrite'?s.put(value,key):s.get(key);tx.oncomplete=()=>resolve(r.result);tx.onerror=()=>reject(tx.error);tx.onabort=()=>reject(tx.error||Error('传输中断'))})}finally{db.close()}}
+function downloadFile(f){const a=document.createElement('a'),u=URL.createObjectURL(f);a.href=u;a.download=f.name;document.body.append(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(u),60000)}
+async function shareJSON(data,name){const f=new File([JSON.stringify(data,null,2)],name.replace(/[\\/:*?"<>|]/g,'_'),{type:'application/json'});if(navigator.share&&navigator.canShare?.({files:[f]})){try{await navigator.share({files:[f]});return 'share'}catch(e){if(e.name==='AbortError')return 'cancel'}}downloadFile(f);return 'download'}
